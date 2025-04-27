@@ -1,0 +1,14 @@
+scrape_configs:
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8086']
+
+remote_read:
+  - url: "http://influxdb:8086/api/v1/prom/read?db=metrics"
+    read_recent: true
+
+remote_write:
+  - url: "http://influxdb:8086/api/v1/prom/write?db=metrics"
+    basic_auth:
+      username: admin
+      password: prometheus123

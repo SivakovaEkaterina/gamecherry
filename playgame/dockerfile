@@ -1,0 +1,48 @@
+# Stage 1: Сборка Flutter и Python-окружения
+FROM debian:latest AS build-env
+
+RUN apt-get update && \
+    apt-get install -y curl git wget unzip libgconf-2-4 gdb libstdc++6 libglu1-mesa fonts-droid-fallback lib32stdc++6 python3 python3-pip python3-venv && \
+    apt-get clean
+
+# Установка Flutter
+RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter
+ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:${PATH}"
+RUN flutter doctor -v && \
+    flutter channel stable && \
+    flutter upgrade && \
+    flutter config --enable-web
+
+WORKDIR /app
+COPY . .
+
+# Копируем файлы из metrics_collector
+COPY metrics_collector/main.py /app/
+COPY metrics_collector/playgameflutterfinal-firebase-adminsdk-fbsvc-f145c4d4c3.json /app/
+
+# Установка Python-зависимостей
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir influxdb-client firebase-admin
+
+# Сборка Flutter-приложения
+RUN flutter build web --release
+
+# Stage 2: Финальный образ
+FROM nginx:alpine
+
+# Копируем Flutter-приложение
+COPY --from=build-env /app/build/web /usr/share/nginx/html
+
+# Устанавливаем Python через apk (без pip)
+RUN apk add --no-cache python3
+
+# Создаем виртуальное окружение и устанавливаем зависимости
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir influxdb-client firebase-admin
+
+# Копируем Python-скрипт и сертификат Firebase
+COPY --from=build-env /app/main.py /app/
+COPY --from=build-env /app/playgameflutterfinal-firebase-adminsdk-fbsvc-f145c4d4c3.json /app/
+
+# Запускаем Nginx и Python-скрипт через venv
+CMD ["sh", "-c", "nginx -g 'daemon off;' & /venv/bin/python /app/main.py"]

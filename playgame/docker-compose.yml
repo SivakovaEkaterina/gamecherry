@@ -1,0 +1,72 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=prometheus123
+      - DOCKER_INFLUXDB_INIT_ORG=myorg
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+
+  telegraf:
+    image: telegraf:latest
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf
+      - /:/hostfs:ro
+    environment:
+      - HOST_PROC=/hostfs/proc
+      - HOST_SYS=/hostfs/sys
+      - HOST_ETC=/hostfs/etc
+    depends_on:
+      - influxdb
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - influxdb
+
+  grafana:
+    image: grafana/grafana-enterprise
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+      - prometheus
+
+  metrics_collector:
+    image: python:3.9
+    volumes:
+      - ./metrics_collector:/app
+    working_dir: /app
+    command: python main.py
+    depends_on:
+      - influxdb
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=admin:prometheus123
+      - INFLUXDB_ORG=myorg
+      - INFLUXDB_BUCKET=metrics
+
+  app:
+    build: .  # Собирает образ из Dockerfile
+    ports:
+      - "8083:80"  # Порт Nginx
+    depends_on:
+      - influxdb
+
+
+volumes:
+  influxdb_data:
+  grafana_data:

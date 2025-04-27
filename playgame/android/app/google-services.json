@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "297233484010",
+    "project_id": "playgameflutterfinal",
+    "storage_bucket": "playgameflutterfinal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:297233484010:android:0e957622bad82d89f1ef93",
+        "android_client_info": {
+          "package_name": "com.example.playgame"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "297233484010-h2e7g9jl528d64n7meem30fcj6ne23aj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-jbXKof9M3z6kc21PCVIHKR0fnS1BAX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "297233484010-h2e7g9jl528d64n7meem30fcj6ne23aj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "297233484010-2qf4p8mgivcufc3h4erb15rsoq7v2ci4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.playgame"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
