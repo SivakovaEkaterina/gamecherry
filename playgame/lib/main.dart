@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cherry.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +73,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _checkAuthState() {
     _auth.authStateChanges().listen((User? user) async {
+      if (user != null && !user.emailVerified && user.providerData.any((info) => info.providerId == 'password')) {
+        await _auth.signOut();
+        return;
+      }
+      
       setState(() {
         _user = user;
         _userName = user == null ? 'Гость' : _userName;
@@ -198,6 +204,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
@@ -213,6 +220,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await _login();
       } else {
         await _register();
+        await _sendVerificationEmail();
       }
       
       if (_rememberMe) {
@@ -249,7 +257,56 @@ class _AuthScreenState extends State<AuthScreen> {
       'email': _emailController.text,
       'name': _nameController.text,
       'createdAt': FieldValue.serverTimestamp(),
+      'provider': 'email',
     });
+  }
+
+  Future<void> _signInWithGoogle() async {
+    try {
+      setState(() => _progressValue = 0.3);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth = 
+          await googleUser.authentication;
+
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = 
+          await _auth.signInWithCredential(credential);
+      
+      // Если пользователь новый, сохраняем данные в Firestore
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        await _firestore.collection('users').doc(userCredential.user?.uid).set({
+          'email': googleUser.email,
+          'name': googleUser.displayName ?? googleUser.email?.split('@')[0],
+          'createdAt': FieldValue.serverTimestamp(),
+          'provider': 'google',
+        });
+      }
+      
+      setState(() => _progressValue = 1.0);
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() {
+        _message = 'Ошибка Google Sign-In: $e';
+        _progressValue = 0.0;
+      });
+    }
+  }
+
+  Future<void> _sendVerificationEmail() async {
+    try {
+      if (_auth.currentUser != null && !_auth.currentUser!.emailVerified) {
+        await _auth.currentUser!.sendEmailVerification();
+        setState(() => _message = 'Письмо с подтверждением отправлено на ${_emailController.text}');
+      }
+    } catch (e) {
+      setState(() => _message = 'Ошибка отправки письма: $e');
+    }
   }
 
   void _toggleAuthMode() {
@@ -323,6 +380,17 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: ElevatedButton(
                     onPressed: _authAction,
                     child: Text(_isLogin ? 'Войти' : 'Зарегистрироваться'),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: Image.asset(
+                      'assets/images/google_logo.png',
+                      height: 24,
+                    ),
+                    label: const Text('Войти через Google'),
+                    onPressed: _signInWithGoogle,
                   ),
                 ),
                 TextButton(
