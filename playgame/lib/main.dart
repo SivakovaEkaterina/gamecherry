@@ -73,11 +73,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _checkAuthState() {
     _auth.authStateChanges().listen((User? user) async {
-      if (user != null && !user.emailVerified && user.providerData.any((info) => info.providerId == 'password')) {
-        await _auth.signOut();
-        return;
-      }
-      
       setState(() {
         _user = user;
         _userName = user == null ? 'Гость' : _userName;
@@ -220,7 +215,6 @@ class _AuthScreenState extends State<AuthScreen> {
         await _login();
       } else {
         await _register();
-        await _sendVerificationEmail();
       }
       
       if (_rememberMe) {
@@ -257,7 +251,6 @@ class _AuthScreenState extends State<AuthScreen> {
       'email': _emailController.text,
       'name': _nameController.text,
       'createdAt': FieldValue.serverTimestamp(),
-      'provider': 'email',
     });
   }
 
@@ -284,7 +277,6 @@ class _AuthScreenState extends State<AuthScreen> {
           'email': googleUser.email,
           'name': googleUser.displayName ?? googleUser.email?.split('@')[0],
           'createdAt': FieldValue.serverTimestamp(),
-          'provider': 'google',
         });
       }
       
@@ -295,17 +287,6 @@ class _AuthScreenState extends State<AuthScreen> {
         _message = 'Ошибка Google Sign-In: $e';
         _progressValue = 0.0;
       });
-    }
-  }
-
-  Future<void> _sendVerificationEmail() async {
-    try {
-      if (_auth.currentUser != null && !_auth.currentUser!.emailVerified) {
-        await _auth.currentUser!.sendEmailVerification();
-        setState(() => _message = 'Письмо с подтверждением отправлено на ${_emailController.text}');
-      }
-    } catch (e) {
-      setState(() => _message = 'Ошибка отправки письма: $e');
     }
   }
 
